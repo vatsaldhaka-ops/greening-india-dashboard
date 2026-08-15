@@ -1,0 +1,521 @@
+<!DOCTYPE html><script type="application/json" id="cowork-artifact-meta">
+{
+  "name": "Agroforestry Progress",
+  "schemaVersion": 1,
+  "description": "Live agroforestry ops dashboard for Nagarkurnool, Wanaparthy, Anantapur, Khargone+Barwani. Progress vs targets paced to 15 Oct 2026, day-to-day charts, run-rate vs required rate, ETAs, planting density, contribution mix, and paid-vs-planted sapling backlog. Data from the 8 PM report in #greeningindiainternal; refreshed nightly."
+}
+</script>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Greening India — Plantation Progress</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+:root{ color-scheme: light; }
+*{ box-sizing:border-box; margin:0; padding:0; }
+body{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  background:#f4f7f4; color:#16261b; line-height:1.45; padding:20px; max-width:1200px; margin:0 auto; }
+h1{ font-size:22px; font-weight:700; letter-spacing:-.01em; }
+.sub{ color:#5c6b60; font-size:13px; margin-top:3px; }
+.pill{ font-size:12px; font-weight:600; padding:4px 10px; border-radius:999px; white-space:nowrap; }
+.pill.gray{ color:#43705a; background:#e3f0e7; }
+.head{ display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:18px; }
+.head .pills{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+
+.kpis{ display:grid; grid-template-columns:repeat(5,1fr); gap:12px; }
+.kpi{ background:#fff; border:1px solid #e3e9e4; border-radius:14px; padding:13px 15px; }
+.kpi .lab{ font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:#6b7a70; font-weight:600; }
+.kpi .val{ font-size:23px; font-weight:700; margin-top:4px; letter-spacing:-.02em; }
+.kpi .val small{ font-size:13px; color:#6b7a70; font-weight:600; }
+.kpi .note{ font-size:11.5px; color:#43705a; margin-top:2px; font-weight:600; }
+
+.banner{ margin:14px 0 6px; border-radius:14px; padding:14px 18px; display:flex; align-items:center; gap:14px; border:1px solid; }
+.banner.green{ background:#e7f4ec; border-color:#bfe3cd; color:#1f6b3d; }
+.banner.amber{ background:#fdf3e3; border-color:#f2dcae; color:#8a5a12; }
+.banner.red{ background:#fbe9e9; border-color:#f0c3c3; color:#9a2a2a; }
+.banner .b-ic{ font-size:22px; }
+.banner .b-main{ font-size:15px; font-weight:700; }
+.banner .b-sub{ font-size:12.5px; opacity:.9; margin-top:2px; }
+
+.overall{ background:#fff; border:1px solid #e3e9e4; border-radius:14px; padding:16px 18px; margin:12px 0 22px; }
+.overall .row{ display:flex; justify-content:space-between; align-items:baseline; }
+.overall .pct{ font-size:15px; font-weight:700; color:#2f7d4f; }
+.bar{ height:16px; background:#e9efe9; border-radius:999px; overflow:hidden; margin-top:10px; position:relative; }
+.bar > span{ display:block; height:100%; background:linear-gradient(90deg,#3f9d63,#57c07d); border-radius:999px; }
+.bar .marker{ position:absolute; top:-3px; bottom:-3px; width:2px; background:#c0392b; }
+.bar.small{ height:9px; margin-top:8px; }
+.legend-inline{ font-size:11px; color:#7a8a7f; margin-top:6px; }
+
+.sec-title{ font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:#526056; font-weight:700; margin:24px 0 10px; }
+
+.cards{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+.card{ background:#fff; border:1px solid #e3e9e4; border-radius:14px; padding:16px 18px; }
+.card .top{ display:flex; justify-content:space-between; align-items:flex-start; }
+.card .name{ font-size:16px; font-weight:700; }
+.card .state{ font-size:12px; color:#7a8a7f; }
+.card .status{ font-size:11px; font-weight:700; padding:3px 9px; border-radius:999px; }
+.st-green{ background:#e7f4ec; color:#1f6b3d; }
+.st-amber{ background:#fdf3e3; color:#8a5a12; }
+.st-red{ background:#fbe9e9; color:#9a2a2a; }
+.card .big{ font-size:22px; font-weight:700; color:#2f7d4f; letter-spacing:-.02em; margin-top:8px; }
+.card .acres{ font-size:13px; color:#3a4a40; margin-top:4px; }
+.card .acres b{ font-size:15px; }
+.metrics{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px; padding-top:12px; border-top:1px solid #eef2ee; }
+.metric .m-lab{ font-size:10.5px; color:#7a8a7f; text-transform:uppercase; letter-spacing:.03em; }
+.metric .m-val{ font-size:14px; font-weight:700; margin-top:2px; }
+.metric .m-val.up{ color:#2f7d4f; } .metric .m-val.flat{ color:#98a49b; }
+.sub-rows{ margin-top:10px; padding-top:9px; border-top:1px dashed #e2e8e3; font-size:12px; color:#546055; }
+.sub-rows .sr{ display:flex; justify-content:space-between; padding:2px 0; }
+
+.charts2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.charts3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; }
+.chart-box{ background:#fff; border:1px solid #e3e9e4; border-radius:14px; padding:14px 16px; }
+.chart-box h3{ font-size:13px; font-weight:700; color:#3a4a40; margin-bottom:3px; }
+.chart-box .cap{ font-size:11px; color:#8a978c; margin-bottom:8px; }
+.chart-wrap{ position:relative; height:250px; }
+.chart-wrap.tall{ height:270px; }
+
+table.data{ width:100%; border-collapse:collapse; background:#fff; border:1px solid #e3e9e4; border-radius:14px; overflow:hidden; font-size:12.5px; }
+table.data th, table.data td{ padding:9px 10px; text-align:right; border-bottom:1px solid #eef2ee; white-space:nowrap; }
+table.data th:first-child, table.data td:first-child{ text-align:left; }
+table.data thead th{ background:#f0f5f1; font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; color:#526056; }
+table.data tbody tr:last-child td{ border-bottom:none; }
+table.data tr.grp td{ background:#fafcfa; font-weight:700; }
+.tag{ font-size:10.5px; font-weight:700; padding:2px 7px; border-radius:999px; }
+
+.foot{ font-size:11.5px; color:#7a8a7f; margin-top:22px; line-height:1.6; }
+.foot code{ background:#eef2ee; padding:1px 5px; border-radius:5px; font-size:11px; }
+@media(max-width:900px){ .kpis{ grid-template-columns:repeat(2,1fr);} .cards,.charts2,.charts3{ grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="head">
+  <div>
+    <h1>🌱 Greening India — Agroforestry Plantation Progress</h1>
+    <div class="sub">Live progress vs targets, paced to the <b>15 Oct 2026</b> deadline · source: 8 PM daily report in <b>#greeningindiainternal</b></div>
+  </div>
+  <div class="pills">
+    <div class="pill gray" id="asof">As of —</div>
+    <div class="pill gray" id="dleft">— days to deadline</div>
+  </div>
+</div>
+
+<div class="kpis" id="kpis"></div>
+
+<div class="banner" id="paceBanner"></div>
+
+<div class="overall">
+  <div class="row"><div><b>Overall — all sites vs 3,500 acre target</b></div><div class="pct" id="ov-pct">—</div></div>
+  <div class="bar"><span id="ov-bar" style="width:0%"></span><div class="marker" id="ov-mark" title="Where we should be to stay on pace"></div></div>
+  <div class="legend-inline" id="ov-note"></div>
+</div>
+
+<div class="sec-title">Site progress &amp; pace vs 15 Oct</div>
+<div class="cards" id="cards"></div>
+
+<div class="sec-title">Day-to-day progress</div>
+<div class="charts2">
+  <div class="chart-box">
+    <h3>Acres planted per day</h3><div class="cap">Daily new acres, stacked by site (from each 8 PM report)</div>
+    <div class="chart-wrap tall"><canvas id="chartDaily"></canvas></div>
+  </div>
+  <div class="chart-box">
+    <h3>Cumulative acres over time</h3><div class="cap">Running total per site — grows each night</div>
+    <div class="chart-wrap tall"><canvas id="chartTrend"></canvas></div>
+  </div>
+</div>
+<div class="charts2" style="margin-top:14px">
+  <div class="chart-box">
+    <h3>Saplings planted per day</h3><div class="cap">Daily new saplings, stacked by site</div>
+    <div class="chart-wrap"><canvas id="chartDailySap"></canvas></div>
+  </div>
+  <div class="chart-box">
+    <h3>Run-rate vs required</h3><div class="cap">Acres per working day (Sundays off): recent pace vs rate needed to finish by 15 Oct</div>
+    <div class="chart-wrap"><canvas id="chartRate"></canvas></div>
+  </div>
+</div>
+
+<div class="sec-title">Operational cuts</div>
+<div class="charts3">
+  <div class="chart-box">
+    <h3>% of target achieved</h3><div class="cap">Progress toward each site's acre goal</div>
+    <div class="chart-wrap"><canvas id="chartPct"></canvas></div>
+  </div>
+  <div class="chart-box">
+    <h3>Contribution mix</h3><div class="cap">Share of total acres planted so far</div>
+    <div class="chart-wrap"><canvas id="chartMix"></canvas></div>
+  </div>
+  <div class="chart-box">
+    <h3>Planting density</h3><div class="cap">Saplings per acre (consistency check)</div>
+    <div class="chart-wrap"><canvas id="chartDensity"></canvas></div>
+  </div>
+</div>
+
+<div class="sec-title">Paid vs planted — sapling backlog</div>
+<div class="chart-box" style="margin-bottom:2px">
+  <div class="cap" style="margin-bottom:10px">Saplings paid/procured (cumulative) vs saplings planted. The gap is inventory paid for but not yet reflected as planted — a pipeline the field teams can still convert. <span id="paydate"></span></div>
+  <table class="data" id="tblPay"></table>
+</div>
+
+<div class="sec-title">Full figures (cumulative, till date)</div>
+<table class="data" id="tbl"></table>
+
+<div class="foot" id="foot"></div>
+
+<script>
+/* ============================================================
+   DATA — updated nightly by the scheduled task.
+   history[]: one entry per 8 PM report.
+     sites[key] = { acres, saplings (cumulative "till date"),
+                    dAcres, dSaplings ("past 24hr" add) }
+   payments: latest cumulative sapling-payment snapshot per site.
+   To add a day: append to history[], update payments + updatedAt.
+   ============================================================ */
+const DEADLINE = "2026-10-15";
+const DATA = {
+  updatedAt: "2026-08-14T20:00:00+05:30",
+  overallTarget: 3500,
+  sites: [
+    { key:"nagarkurnool", name:"Nagarkurnool", state:"Telangana",      target:1500 },
+    { key:"wanaparthy",   name:"Wanaparthy",   state:"Telangana",      target:500  },
+    { key:"anantapur",    name:"Anantapur",    state:"Andhra Pradesh", target:1000 },
+    { key:"khargone",     name:"Khargone",     state:"Madhya Pradesh", group:"mp" },
+    { key:"barwani",      name:"Barwani",      state:"Madhya Pradesh", group:"mp" }
+  ],
+  groups: { mp: { name:"Khargone + Barwani", state:"Madhya Pradesh", target:500, members:["khargone","barwani"] } },
+  history: [
+    { date:"2026-07-26", sites:{
+        nagarkurnool:{acres:302.45,saplings:64784,dAcres:0,dSaplings:0},
+        wanaparthy:{acres:54.65,saplings:7980,dAcres:0,dSaplings:0},
+        anantapur:{acres:244.93,saplings:45450,dAcres:0,dSaplings:0},
+        khargone:{acres:193.24,saplings:43124,dAcres:0,dSaplings:0},
+        barwani:{acres:5.72,saplings:927,dAcres:0,dSaplings:0} }},
+    { date:"2026-07-27", sites:{
+        nagarkurnool:{acres:324.98,saplings:69413,dAcres:22.53,dSaplings:4629},
+        wanaparthy:{acres:66.40,saplings:10110,dAcres:11.75,dSaplings:2130},
+        anantapur:{acres:254.83,saplings:47220,dAcres:9.90,dSaplings:1770},
+        khargone:{acres:200.66,saplings:44686,dAcres:7.42,dSaplings:1562},
+        barwani:{acres:8.28,saplings:1293,dAcres:2.55,dSaplings:366} }},
+    { date:"2026-07-28", sites:{
+        nagarkurnool:{acres:342.82,saplings:73116,dAcres:17.84,dSaplings:3703},
+        wanaparthy:{acres:71.83,saplings:11015,dAcres:5.43,dSaplings:905},
+        anantapur:{acres:269.15,saplings:49735,dAcres:14.32,dSaplings:2515},
+        khargone:{acres:200.66,saplings:44686,dAcres:0,dSaplings:0},
+        barwani:{acres:8.28,saplings:1293,dAcres:0,dSaplings:0} }},
+    { date:"2026-07-29", sites:{
+        nagarkurnool:{acres:357.41,saplings:75996,dAcres:14.59,dSaplings:2880},
+        wanaparthy:{acres:76.20,saplings:11489,dAcres:4.37,dSaplings:474},
+        anantapur:{acres:281.42,saplings:52442,dAcres:12.27,dSaplings:2707},
+        khargone:{acres:213.08,saplings:47979,dAcres:12.43,dSaplings:3293},
+        barwani:{acres:8.28,saplings:1293,dAcres:0,dSaplings:0} }},
+    { date:"2026-07-30", sites:{
+        nagarkurnool:{acres:370.61,saplings:78925,dAcres:13.20,dSaplings:2929},
+        wanaparthy:{acres:89.36,saplings:13735,dAcres:13.16,dSaplings:2246},
+        anantapur:{acres:289.77,saplings:53931,dAcres:8.35,dSaplings:1489},
+        khargone:{acres:213.08,saplings:47979,dAcres:0,dSaplings:0},
+        barwani:{acres:8.28,saplings:1293,dAcres:0,dSaplings:0} }},
+    { date:"2026-07-31", sites:{
+        nagarkurnool:{acres:387.05,saplings:82457,dAcres:16.45,dSaplings:3473},
+        wanaparthy:{acres:95.88,saplings:15906,dAcres:6.52,dSaplings:2171},
+        anantapur:{acres:306.71,saplings:56459,dAcres:16.93,dSaplings:2528},
+        khargone:{acres:217.93,saplings:49556,dAcres:3.63,dSaplings:844},
+        barwani:{acres:10.07,saplings:1682,dAcres:1.80,dSaplings:389} }},
+    { date:"2026-08-01", sites:{
+        nagarkurnool:{acres:402.41,saplings:85959,dAcres:15.36,dSaplings:3502},
+        wanaparthy:{acres:100.93,saplings:17201,dAcres:5.05,dSaplings:1295},
+        anantapur:{acres:317.06,saplings:58376,dAcres:10.35,dSaplings:1917},
+        khargone:{acres:217.93,saplings:49254,dAcres:0,dSaplings:0},
+        barwani:{acres:10.07,saplings:1682,dAcres:0,dSaplings:0} }},
+    { date:"2026-08-02", sites:{
+        nagarkurnool:{acres:402.41,saplings:85959,dAcres:0,dSaplings:0},
+        wanaparthy:{acres:100.93,saplings:17201,dAcres:0,dSaplings:0},
+        anantapur:{acres:317.06,saplings:58376,dAcres:0,dSaplings:0},
+        khargone:{acres:220.68,saplings:49913,dAcres:2.75,dSaplings:659},
+        barwani:{acres:10.07,saplings:1682,dAcres:0,dSaplings:0} }},
+    { date:"2026-08-03", sites:{
+        nagarkurnool:{acres:433.86,saplings:92712,dAcres:31.40,dSaplings:6753},
+        wanaparthy:{acres:108.84,saplings:19035,dAcres:7.92,dSaplings:1834},
+        anantapur:{acres:331.47,saplings:61465,dAcres:14.24,dSaplings:3089},
+        khargone:{acres:241.09,saplings:56054,dAcres:17.30,dSaplings:4967},
+        barwani:{acres:10.07,saplings:1682,dAcres:0,dSaplings:0} }},
+    { date:"2026-08-04", sites:{
+        nagarkurnool:{acres:450.23,saplings:95871,dAcres:16.37,dSaplings:3159},
+        wanaparthy:{acres:113.40,saplings:19610,dAcres:4.55,dSaplings:575},
+        anantapur:{acres:341.81,saplings:63346,dAcres:10.34,dSaplings:1881},
+        khargone:{acres:254.94,saplings:59248,dAcres:13.85,dSaplings:3194},
+        barwani:{acres:10.07,saplings:1682,dAcres:0,dSaplings:0} }},
+    { date:"2026-08-05", sites:{
+        nagarkurnool:{acres:458.98,saplings:97745,dAcres:8.75,dSaplings:1874},
+        wanaparthy:{acres:115.58,saplings:19923,dAcres:2.18,dSaplings:313},
+        anantapur:{acres:358.74,saplings:65779,dAcres:16.53,dSaplings:2433},
+        khargone:{acres:263.05,saplings:61215,dAcres:7.74,dSaplings:1877},
+        barwani:{acres:10.07,saplings:1682,dAcres:0,dSaplings:0} }},
+    { date:"2026-08-06", sites:{
+        nagarkurnool:{acres:468.38,saplings:99949,dAcres:9.40,dSaplings:2204},
+        wanaparthy:{acres:117.81,saplings:20321,dAcres:2.23,dSaplings:398},
+        anantapur:{acres:370.67,saplings:68894,dAcres:11.93,dSaplings:3115},
+        khargone:{acres:270.75,saplings:63004,dAcres:7.71,dSaplings:1789},
+        barwani:{acres:10.07,saplings:1682,dAcres:0,dSaplings:0} }},
+    { date:"2026-08-07", sites:{
+        nagarkurnool:{acres:480.28,saplings:102883,dAcres:11.90,dSaplings:2934},
+        wanaparthy:{acres:120.81,saplings:20762,dAcres:3.00,dSaplings:441},
+        anantapur:{acres:379.81,saplings:70644,dAcres:9.14,dSaplings:1750},
+        khargone:{acres:276.76,saplings:64466,dAcres:6.01,dSaplings:1462},
+        barwani:{acres:10.07,saplings:1682,dAcres:0,dSaplings:0} }},
+    { date:"2026-08-08", sites:{
+        nagarkurnool:{acres:486.04,saplings:104169,dAcres:7.33,dSaplings:1752},
+        wanaparthy:{acres:122.07,saplings:20932,dAcres:1.26,dSaplings:170},
+        anantapur:{acres:389.38,saplings:72132,dAcres:9.57,dSaplings:1488},
+        khargone:{acres:279.52,saplings:65512,dAcres:5.77,dSaplings:1088},
+        barwani:{acres:14.65,saplings:2809,dAcres:4.57,dSaplings:1127} }},
+    { date:"2026-08-09", sites:{
+        nagarkurnool:{acres:486.04,saplings:104169,dAcres:0,dSaplings:0},
+        wanaparthy:{acres:122.07,saplings:20932,dAcres:0,dSaplings:0},
+        anantapur:{acres:389.38,saplings:72132,dAcres:0,dSaplings:0},
+        khargone:{acres:279.52,saplings:65512,dAcres:0,dSaplings:0},
+        barwani:{acres:14.65,saplings:2809,dAcres:0,dSaplings:0} }},
+    { date:"2026-08-10", sites:{
+        nagarkurnool:{acres:503.95,saplings:107965,dAcres:17.91,dSaplings:3796},
+        wanaparthy:{acres:122.07,saplings:20932,dAcres:0,dSaplings:0},
+        anantapur:{acres:403.23,saplings:74874,dAcres:13.85,dSaplings:2742},
+        khargone:{acres:283.51,saplings:66232,dAcres:3.98,dSaplings:720},
+        barwani:{acres:14.65,saplings:2809,dAcres:0,dSaplings:0} }},
+    { date:"2026-08-11", sites:{
+        nagarkurnool:{acres:514.79,saplings:110114,dAcres:10.85,dSaplings:2149},
+        wanaparthy:{acres:133.96,saplings:22872,dAcres:11.89,dSaplings:1940},
+        anantapur:{acres:426.24,saplings:78691,dAcres:23.01,dSaplings:3817},
+        khargone:{acres:282.26,saplings:66143,dAcres:0,dSaplings:0},
+        barwani:{acres:14.65,saplings:2809,dAcres:0,dSaplings:0} }},
+    { date:"2026-08-12", sites:{
+        nagarkurnool:{acres:530.03,saplings:113295,dAcres:15.04,dSaplings:3181},
+        wanaparthy:{acres:135.84,saplings:23213,dAcres:1.88,dSaplings:341},
+        anantapur:{acres:435.77,saplings:80926,dAcres:9.54,dSaplings:2235},
+        khargone:{acres:285.02,saplings:66926,dAcres:2.50,dSaplings:741},
+        barwani:{acres:14.65,saplings:2809,dAcres:0,dSaplings:0} }},
+    { date:"2026-08-13", sites:{
+        nagarkurnool:{acres:530.03,saplings:113355,dAcres:0,dSaplings:0},
+        wanaparthy:{acres:143.07,saplings:24409,dAcres:7.23,dSaplings:1196},
+        anantapur:{acres:446.64,saplings:83286,dAcres:10.86,dSaplings:2360},
+        khargone:{acres:291.97,saplings:68900,dAcres:6.95,dSaplings:1744},
+        barwani:{acres:14.65,saplings:2809,dAcres:0,dSaplings:0} }},
+    { date:"2026-08-14", sites:{
+        nagarkurnool:{acres:541.26,saplings:115991,dAcres:11.23,dSaplings:2630},
+        wanaparthy:{acres:148.19,saplings:25054,dAcres:5.12,dSaplings:645},
+        anantapur:{acres:452.06,saplings:84104,dAcres:5.42,dSaplings:818},
+        khargone:{acres:299.07,saplings:70634,dAcres:7.10,dSaplings:1588},
+        barwani:{acres:14.65,saplings:2809,dAcres:0,dSaplings:0} }}
+  ],
+  payments: { date:"2026-08-09", sites:{
+      nagarkurnool:{acres:895.67,saplings:199803},
+      wanaparthy:{acres:215.85,saplings:42028},
+      anantapur:{acres:670.86,saplings:130035},
+      khargone:{acres:299.89,saplings:71046},
+      barwani:{acres:15.40,saplings:3104} } }
+};
+
+/* ---------- helpers ---------- */
+const COLORS={nagarkurnool:"#2f7d4f",wanaparthy:"#57c07d",anantapur:"#3f7fb5",khargone:"#c58a2e",barwani:"#e0b25e",mp:"#c58a2e"};
+const fmt=n=>Math.round(n).toLocaleString("en-IN");
+const fmt1=n=>n.toLocaleString("en-IN",{minimumFractionDigits:1,maximumFractionDigits:1});
+const hist=DATA.history, latest=hist[hist.length-1], first=hist[0];
+const latestDate=new Date(latest.date+"T20:00:00+05:30");
+const today=new Date(); today.setHours(0,0,0,0);
+const deadline=new Date(DEADLINE+"T20:00:00+05:30");
+const DAY=86400000;
+/* Plantation does not happen on Sundays, so all pace math uses WORKING days (Sun excluded). */
+const isSun=d=>d.getDay()===0;
+function workingDaysBetween(a,b){ let n=0,d=new Date(a.getTime());
+  while(true){ d=new Date(d.getTime()+DAY); if(d>b) break; if(!isSun(d)) n++; } return n; }
+function addWorkingDays(a,n){ let d=new Date(a.getTime()),c=0;
+  while(c<n){ d=new Date(d.getTime()+DAY); if(!isSun(d)) c++; } return d; }
+const firstDate=new Date(first.date+"T20:00:00+05:30");
+const daysLeft=Math.max(1,workingDaysBetween(latestDate,deadline));   // working days to deadline (Sun off)
+const spanDays=Math.max(1,workingDaysBetween(firstDate,latestDate));  // working days in the data window
+
+const sA=(k,s)=>(s.sites[k]||{acres:0}).acres||0;
+const sS=(k,s)=>(s.sites[k]||{saplings:0}).saplings||0;
+
+/* build units: individual targeted sites + MP group */
+const units=[];
+for(const s of DATA.sites){ if(!s.group) units.push({type:"site",key:s.key,name:s.name,state:s.state,target:s.target,color:COLORS[s.key]}); }
+const mp=DATA.groups.mp;
+units.push({type:"group",key:"mp",name:mp.name,state:mp.state,target:mp.target,members:mp.members,color:COLORS.mp});
+
+const uAcres=u=>u.type==="site"?sA(u.key,latest):u.members.reduce((a,k)=>a+sA(k,latest),0);
+const uSap  =u=>u.type==="site"?sS(u.key,latest):u.members.reduce((a,k)=>a+sS(k,latest),0);
+const uFirst=u=>u.type==="site"?sA(u.key,first):u.members.reduce((a,k)=>a+sA(k,first),0);
+const uDaily=(u,f)=>u.type==="site"?((latest.sites[u.key]||{})[f]||0):u.members.reduce((a,k)=>a+((latest.sites[k]||{})[f]||0),0);
+/* Run-rate = reported daily-added acres averaged over the last RATE_WIN reports, counting working days only (Sundays excluded). */
+const RATE_WIN=7;
+const rateWin=hist.slice(Math.max(0,hist.length-RATE_WIN));
+const rateWorkDays=Math.max(1, rateWin.filter(h=>!isSun(new Date(h.date+"T20:00:00+05:30"))).length);
+const windowAdd=u=>rateWin.reduce((s,h)=> isSun(new Date(h.date+"T20:00:00+05:30"))?s : s+(u.type==="site"?((h.sites[u.key]||{}).dAcres||0):u.members.reduce((a,k)=>a+((h.sites[k]||{}).dAcres||0),0)),0);
+const uRate =u=>windowAdd(u)/rateWorkDays;               // acres per working day (recent)
+const uReq  =u=>Math.max(0,(u.target-uAcres(u))/daysLeft); // required acres per working day
+const uETA  =u=>{const r=uRate(u); return r>0?addWorkingDays(latestDate,Math.ceil((u.target-uAcres(u))/r)):null;};
+function statusOf(u){ const r=uRate(u),q=uReq(u); if(q<=0) return "green"; const ratio=r/q; return ratio>=1?"green":ratio>=0.85?"amber":"red"; }
+
+/* ---------- totals ---------- */
+const totAcres=units.reduce((a,u)=>a+uAcres(u),0);
+const totSap  =units.reduce((a,u)=>a+uSap(u),0);
+const totDayAc=units.reduce((a,u)=>a+uDaily(u,"dAcres"),0);
+const totDaySap=units.reduce((a,u)=>a+uDaily(u,"dSaplings"),0);
+const ovPct=totAcres/DATA.overallTarget*100;
+const ovRate=units.reduce((a,u)=>a+windowAdd(u),0)/rateWorkDays;
+const ovReq=(DATA.overallTarget-totAcres)/daysLeft;
+const ovETA=ovRate>0?addWorkingDays(latestDate,Math.ceil((DATA.overallTarget-totAcres)/ovRate)):null;
+const paceOnTargetAcres=totAcres + ovReq*0; // marker where we should be = target * (elapsed/total)? use req logic
+/* marker: fraction of target we'd need now to be on a straight line to deadline from project start is unknown;
+   instead mark the pace-needed line = (target - remainingIfOnPace). Simpler: show projected vs deadline via banner. */
+
+const dstr=d=>d?d.toLocaleDateString("en-IN",{day:"numeric",month:"short"}):"—";
+const dstrY=d=>d?d.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}):"—";
+
+/* ---------- header pills ---------- */
+document.getElementById("asof").textContent="As of "+latestDate.toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})+" · 8 PM";
+document.getElementById("dleft").textContent=daysLeft+" working days to 15 Oct (Sun off)";
+
+/* ---------- KPIs ---------- */
+document.getElementById("kpis").innerHTML=[
+  {lab:"Acres planted",val:fmt1(totAcres)+' <small>/ '+fmt(DATA.overallTarget)+'</small>',note:ovPct.toFixed(1)+"% of target"},
+  {lab:"Saplings planted",val:fmt(totSap),note:"across 5 sites"},
+  {lab:"Added last 24h",val:"+"+fmt1(totDayAc)+' <small>ac</small>',note:"+"+fmt(totDaySap)+" saplings"},
+  {lab:"Run-rate / working day",val:fmt1(ovRate)+' <small>ac/day</small>',note:"need "+fmt1(ovReq)+"/day (Sun off)"},
+  {lab:"Acres remaining",val:fmt1(DATA.overallTarget-totAcres),note:(100-ovPct).toFixed(1)+"% to go"}
+].map(k=>`<div class="kpi"><div class="lab">${k.lab}</div><div class="val">${k.val}</div><div class="note">${k.note}</div></div>`).join("");
+
+/* ---------- pace banner ---------- */
+const behindSites=units.filter(u=>statusOf(u)!=="green");
+let bcls,bic,bmain,bsub;
+if(ovETA && ovETA<=deadline){ bcls="green"; bic="✅";
+  bmain=`On pace — projected finish ${dstrY(ovETA)}, ${Math.round((deadline-ovETA)/DAY)} days ahead of the 15 Oct deadline`;
+} else { bcls="red"; bic="⚠️";
+  bmain=`Behind pace — at the recent run-rate, projected finish is ${dstrY(ovETA)} (after 15 Oct)`; }
+bsub=`Recent pace ${fmt1(ovRate)} ac/working day vs ${fmt1(ovReq)} needed (Sundays excluded). `+
+     (behindSites.length?`Watch: ${behindSites.map(u=>u.name).join(", ")} trailing required pace.`:`All sites currently at or above required pace.`);
+const pb=document.getElementById("paceBanner");
+pb.className="banner "+bcls;
+pb.innerHTML=`<div class="b-ic">${bic}</div><div><div class="b-main">${bmain}</div><div class="b-sub">${bsub}</div></div>`;
+
+/* ---------- overall bar + pace marker ---------- */
+document.getElementById("ov-pct").textContent=ovPct.toFixed(1)+"%";
+document.getElementById("ov-bar").style.width=Math.min(ovPct,100)+"%";
+/* marker = share of target that keeps us exactly on a straight line finishing at deadline,
+   anchored on where we were at the start of our data window. */
+const startPct=units.reduce((a,u)=>a+uFirst(u),0)/DATA.overallTarget*100;
+const paceMarkPct=Math.min(100, ovPct); // we plot actual; keep marker at 100 target edge suppressed
+document.getElementById("ov-mark").style.display="none";
+document.getElementById("ov-note").innerHTML=
+  `<b>${fmt1(totAcres)}</b> of <b>${fmt(DATA.overallTarget)}</b> acres · <b>${fmt1(DATA.overallTarget-totAcres)}</b> to go · projected finish <b>${dstrY(ovETA)}</b> at the recent ${fmt1(ovRate)} ac/working-day pace (Sundays off).`;
+
+/* ---------- site cards ---------- */
+const stLabel={green:"On pace",amber:"At risk",red:"Behind"};
+document.getElementById("cards").innerHTML=units.map(u=>{
+  const ac=uAcres(u),pct=ac/u.target*100,st=statusOf(u);
+  const eta=uETA(u);
+  let sub="";
+  if(u.type==="group"){ sub=`<div class="sub-rows">`+u.members.map(k=>{const s=latest.sites[k];
+      return `<div class="sr"><span>${DATA.sites.find(x=>x.key===k).name}</span><span><b>${fmt1(s.acres)}</b> ac · ${fmt(s.saplings)} saplings</span></div>`;}).join("")+`</div>`; }
+  return `<div class="card">
+    <div class="top">
+      <div><div class="name">${u.name}</div><div class="state">${u.state}</div></div>
+      <div class="status st-${st}">${stLabel[st]}</div>
+    </div>
+    <div class="big">${pct.toFixed(1)}% <span style="font-size:12px;color:#7a8a7f;font-weight:600">of ${fmt(u.target)} ac</span></div>
+    <div class="acres"><b>${fmt1(ac)}</b> / ${fmt(u.target)} acres · ${fmt(uSap(u))} saplings</div>
+    <div class="bar small"><span style="width:${Math.min(pct,100)}%;background:${u.color}"></span></div>
+    <div class="metrics">
+      <div class="metric"><div class="m-lab">Rate /wkday</div><div class="m-val up">${fmt1(uRate(u))} ac/d</div></div>
+      <div class="metric"><div class="m-lab">Need /wkday</div><div class="m-val">${fmt1(uReq(u))} ac/d</div></div>
+      <div class="metric"><div class="m-lab">Proj. finish</div><div class="m-val ${st==='green'?'up':'flat'}">${dstr(eta)}</div></div>
+      <div class="metric"><div class="m-lab">Added 24h</div><div class="m-val ${uDaily(u,'dAcres')>0?'up':'flat'}">${uDaily(u,'dAcres')>0?'+':''}${fmt1(uDaily(u,'dAcres'))} ac</div></div>
+      <div class="metric"><div class="m-lab">Remaining</div><div class="m-val">${fmt1(u.target-ac)} ac</div></div>
+      <div class="metric"><div class="m-lab">Density</div><div class="m-val">${fmt(uSap(u)/ac)}/ac</div></div>
+    </div>${sub}
+  </div>`;
+}).join("");
+
+/* ---------- chart data ---------- */
+const allDates=hist.map(h=>h.date);
+const lbl=hist.map(h=>new Date(h.date+"T20:00:00+05:30").toLocaleDateString("en-IN",{day:"numeric",month:"short"}));
+const dailyIdx=hist.map((h,i)=>i).filter(i=>i>0); // drop baseline day for per-day charts
+const dlbl=dailyIdx.map(i=>lbl[i]);
+function unitSeries(u,field){ return hist.map(h=> u.type==="site"?((h.sites[u.key]||{})[field]||0):u.members.reduce((a,k)=>a+((h.sites[k]||{})[field]||0),0)); }
+
+const GRID={grid:{color:"#eef2ee"},ticks:{font:{size:11},color:"#6b7a70"}};
+const baseOpts=extra=>Object.assign({responsive:true,maintainAspectRatio:false},extra);
+
+/* daily acres stacked */
+new Chart(document.getElementById("chartDaily"),{type:"bar",
+  data:{labels:dlbl,datasets:units.map(u=>({label:u.name,data:dailyIdx.map(i=>unitSeries(u,"dAcres")[i]),backgroundColor:u.color,stack:"a",borderRadius:3}))},
+  options:baseOpts({plugins:{legend:{position:"bottom",labels:{boxWidth:11,font:{size:10}}}},scales:{x:Object.assign({stacked:true},GRID),y:Object.assign({stacked:true,beginAtZero:true,title:{display:true,text:"Acres / day"}},GRID)}})});
+
+/* daily saplings stacked */
+new Chart(document.getElementById("chartDailySap"),{type:"bar",
+  data:{labels:dlbl,datasets:units.map(u=>({label:u.name,data:dailyIdx.map(i=>unitSeries(u,"dSaplings")[i]),backgroundColor:u.color,stack:"a",borderRadius:3}))},
+  options:baseOpts({plugins:{legend:{position:"bottom",labels:{boxWidth:11,font:{size:10}}}},scales:{x:Object.assign({stacked:true},GRID),y:Object.assign({stacked:true,beginAtZero:true,title:{display:true,text:"Saplings / day"}},GRID)}})});
+
+/* cumulative line */
+new Chart(document.getElementById("chartTrend"),{type:"line",
+  data:{labels:lbl,datasets:units.map(u=>({label:u.name,data:unitSeries(u,"acres"),borderColor:u.color,backgroundColor:u.color,tension:.25,pointRadius:2,borderWidth:2,fill:false}))},
+  options:baseOpts({plugins:{legend:{position:"bottom",labels:{boxWidth:11,font:{size:10}}}},scales:{x:GRID,y:Object.assign({beginAtZero:true,title:{display:true,text:"Cumulative acres"}},GRID)}})});
+
+/* run-rate vs required (grouped) */
+new Chart(document.getElementById("chartRate"),{type:"bar",
+  data:{labels:units.map(u=>u.name),datasets:[
+    {label:"Recent run-rate",data:units.map(u=>+uRate(u).toFixed(2)),backgroundColor:units.map(u=>u.color),borderRadius:4},
+    {label:"Needed /day",data:units.map(u=>+uReq(u).toFixed(2)),backgroundColor:"#cfd8d0",borderRadius:4}
+  ]},
+  options:baseOpts({plugins:{legend:{position:"bottom",labels:{boxWidth:11,font:{size:10}}},tooltip:{callbacks:{label:c=>c.dataset.label+": "+c.parsed.y+" ac/day"}}},scales:{x:GRID,y:Object.assign({beginAtZero:true,title:{display:true,text:"Acres / day"}},GRID)}})});
+
+/* % of target */
+new Chart(document.getElementById("chartPct"),{type:"bar",
+  data:{labels:units.map(u=>u.name),datasets:[{data:units.map(u=>+(uAcres(u)/u.target*100).toFixed(1)),backgroundColor:units.map(u=>u.color),borderRadius:5,maxBarThickness:48}]},
+  options:baseOpts({indexAxis:"y",plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.x+"% of target"}}},scales:{x:Object.assign({beginAtZero:true,max:100,ticks:{callback:v=>v+"%"}},GRID),y:GRID}})});
+
+/* contribution mix */
+new Chart(document.getElementById("chartMix"),{type:"doughnut",
+  data:{labels:units.map(u=>u.name),datasets:[{data:units.map(u=>+uAcres(u).toFixed(1)),backgroundColor:units.map(u=>u.color),borderWidth:2,borderColor:"#fff"}]},
+  options:baseOpts({cutout:"58%",plugins:{legend:{position:"bottom",labels:{boxWidth:11,font:{size:10}}},tooltip:{callbacks:{label:c=>c.label+": "+fmt1(c.parsed)+" ac ("+(c.parsed/totAcres*100).toFixed(0)+"%)"}}}})});
+
+/* density */
+new Chart(document.getElementById("chartDensity"),{type:"bar",
+  data:{labels:units.map(u=>u.name),datasets:[{data:units.map(u=>Math.round(uSap(u)/uAcres(u))),backgroundColor:units.map(u=>u.color),borderRadius:5,maxBarThickness:48}]},
+  options:baseOpts({plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+" saplings/acre"}}},scales:{x:GRID,y:Object.assign({beginAtZero:true,title:{display:true,text:"Saplings / acre"}},GRID)}})});
+
+/* ---------- paid vs planted table ---------- */
+document.getElementById("paydate").textContent="Payment data as of "+new Date(DATA.payments.date+"T20:00:00+05:30").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})+".";
+let pr="";
+for(const u of units){
+  const planted=uSap(u);
+  const paid=u.type==="site"?(DATA.payments.sites[u.key]||{saplings:0}).saplings:u.members.reduce((a,k)=>a+((DATA.payments.sites[k]||{saplings:0}).saplings),0);
+  const gap=paid-planted, conv=paid>0?planted/paid*100:0;
+  pr+=`<tr><td>${u.name}</td><td>${fmt(paid)}</td><td>${fmt(planted)}</td><td><b>${fmt(gap)}</b></td><td>${conv.toFixed(0)}%</td></tr>`;
+}
+const paidT=units.reduce((a,u)=>a+(u.type==="site"?(DATA.payments.sites[u.key]||{saplings:0}).saplings:u.members.reduce((b,k)=>b+((DATA.payments.sites[k]||{saplings:0}).saplings),0)),0);
+pr+=`<tr class="grp"><td>TOTAL</td><td>${fmt(paidT)}</td><td>${fmt(totSap)}</td><td>${fmt(paidT-totSap)}</td><td>${(totSap/paidT*100).toFixed(0)}%</td></tr>`;
+document.getElementById("tblPay").innerHTML=`<thead><tr><th>Site</th><th>Saplings paid</th><th>Saplings planted</th><th>Backlog (paid−planted)</th><th>Converted</th></tr></thead><tbody>${pr}</tbody>`;
+
+/* ---------- full figures table ---------- */
+let rows="";
+for(const u of units){
+  const ac=uAcres(u);
+  rows+=`<tr class="${u.type==='group'?'grp':''}"><td>${u.name}</td><td>${fmt(u.target)}</td><td>${fmt1(ac)}</td><td>${(ac/u.target*100).toFixed(1)}%</td><td>${fmt(uSap(u))}</td><td>${uDaily(u,'dAcres')>0?'+'+fmt1(uDaily(u,'dAcres')):'0'}</td><td>${fmt1(uRate(u))}</td><td>${fmt1(uReq(u))}</td><td>${dstr(uETA(u))}</td></tr>`;
+  if(u.type==='group'){ for(const k of u.members){ const s=latest.sites[k];
+    rows+=`<tr><td style="padding-left:22px;color:#6b7a70">↳ ${DATA.sites.find(x=>x.key===k).name}</td><td>—</td><td>${fmt1(s.acres)}</td><td>—</td><td>${fmt(s.saplings)}</td><td>${s.dAcres>0?'+'+fmt1(s.dAcres):'0'}</td><td>—</td><td>—</td><td>—</td></tr>`; } }
+}
+rows+=`<tr class="grp"><td>TOTAL</td><td>${fmt(DATA.overallTarget)}</td><td>${fmt1(totAcres)}</td><td>${ovPct.toFixed(1)}%</td><td>${fmt(totSap)}</td><td>+${fmt1(totDayAc)}</td><td>${fmt1(ovRate)}</td><td>${fmt1(ovReq)}</td><td>${dstr(ovETA)}</td></tr>`;
+document.getElementById("tbl").innerHTML=`<thead><tr><th>Site</th><th>Target</th><th>Planted</th><th>% tgt</th><th>Saplings</th><th>Δ24h ac</th><th>Rate ac/wkday</th><th>Need ac/wkday</th><th>ETA</th></tr></thead><tbody>${rows}</tbody>`;
+
+/* ---------- footer ---------- */
+document.getElementById("foot").innerHTML=
+  `Source: automated 8 PM <b>Daily Plantation Report</b> in <code>#greeningindiainternal</code>; plantation "till date" = cumulative acres/saplings. `+
+  `<b>Sundays are treated as non-working</b> (no plantation), so all pace figures use working days. `+
+  `<b>Run-rate</b> = acres added per <b>working day</b>, over the last ${rateWorkDays} working days (${rateWin[0].date.slice(5)}–${rateWin[rateWin.length-1].date.slice(5)}); Sundays are excluded, not counted as zero-pace days. `+
+  `<b>Need/day</b> = acres remaining ÷ ${daysLeft} working days left to 15 Oct (Sundays excluded). <b>ETA</b> extrapolates the run-rate over future working days only. `+
+  `Trend covers ${hist.length} report days (${lbl[0]}–${lbl[lbl.length-1]}) and extends automatically each night. `+
+  `Last updated ${latestDate.toLocaleString("en-IN",{day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"})} IST.`;
+</script>
+</body>
+</html>
