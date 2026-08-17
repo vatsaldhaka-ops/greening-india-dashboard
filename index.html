@@ -61,6 +61,9 @@ h1{ font-size:22px; font-weight:700; letter-spacing:-.01em; }
 .card .big{ font-size:22px; font-weight:700; color:#2f7d4f; letter-spacing:-.02em; margin-top:8px; }
 .card .acres{ font-size:13px; color:#3a4a40; margin-top:4px; }
 .card .acres b{ font-size:15px; }
+.card .tokenline{ font-size:12.5px; color:#43705a; background:#eef6f0; border:1px solid #d8ebe0; border-radius:8px; padding:5px 9px; margin-top:8px; font-weight:600; display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.card .tokenline b{ font-size:14px; }
+.card .tokenline .tl-sub{ font-weight:600; color:#6b7a70; font-size:11px; }
 .metrics{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px; padding-top:12px; border-top:1px solid #eef2ee; }
 .metric .m-lab{ font-size:10.5px; color:#7a8a7f; text-transform:uppercase; letter-spacing:.03em; }
 .metric .m-val{ font-size:14px; font-weight:700; margin-top:2px; }
@@ -293,6 +296,7 @@ document.getElementById("cards").innerHTML=units.map(u=>{
     <div class="big">${pct.toFixed(1)}% <span style="font-size:12px;color:#7a8a7f;font-weight:600">of ${fmt(u.target)} ac</span></div>
     <div class="acres"><b>${fmt1(ac)}</b> / ${fmt(u.target)} acres · ${fmt(uSap(u))} saplings</div>
     <div class="bar small"><span style="width:${Math.min(pct,100)}%;background:${u.color}"></span></div>
+    <div class="tokenline"><span>🎟️ Token gotten <b>${(uPaidAc(u)/u.target*100).toFixed(1)}%</b> of target</span><span class="tl-sub">${fmt1(uPaidAc(u))} / ${fmt(u.target)} ac paid</span></div>
     <div class="metrics">
       <div class="metric"><div class="m-lab">Rate /wkday</div><div class="m-val up">${fmt1(uRate(u))} ac/d</div></div>
       <div class="metric"><div class="m-lab">Need /wkday</div><div class="m-val">${fmt1(uReq(u))} ac/d</div></div>
