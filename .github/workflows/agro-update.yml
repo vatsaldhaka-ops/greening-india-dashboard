@@ -1,0 +1,43 @@
+name: Agroforestry 8 PM dashboard update
+
+on:
+  schedule:
+    # 14:35 UTC = 20:05 IST daily. Cron is best-effort and may lag a few minutes;
+    # that's fine — the script only applies the newest report and is idempotent.
+    - cron: '35 14 * * *'
+  workflow_dispatch: {}   # lets you run it manually from the Actions tab
+
+permissions:
+  contents: write
+
+concurrency:
+  group: agro-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Update index.html from Slack 8 PM report
+        env:
+          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+        run: node scripts/update-from-slack.js
+
+      - name: Commit & push if changed
+        run: |
+          if [ -n "$(git status --porcelain index.html)" ]; then
+            git config user.name  "Agroforestry Deploy Bot"
+            git config user.email "vatsaldhaka1@gmail.com"
+            git add index.html
+            git commit -m "8 PM report $(TZ=Asia/Kolkata date +%F) [auto]"
+            git push
+            echo "Pushed update; GitHub Pages will rebuild."
+          else
+            echo "No change (report not posted yet or already applied)."
+          fi
